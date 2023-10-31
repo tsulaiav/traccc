@@ -189,8 +189,8 @@ and toolchains that are currently known to work (last updated 2022/01/24):
 
 ### Dependencies
 
-- [Boost](https://www.boost.org/): program_options
 - [CMake](https://cmake.org/)
+- (Optional) [Boost](https://www.boost.org/): program_options
 - (Optional) [ROOT](https://root.cern/): RIO, Hist, Tree
 
 ## Getting started
