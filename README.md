@@ -324,6 +324,12 @@ Attaching file performance_track_finding.root as _file0...
 root [1] finding_trackeff_vs_eta->Draw()
 ```
 
+## Continuous benchmark
+
+Monitoring the event throughput of track reconstruction with the toy geometry
+
+<img src="https://gitlab.cern.ch/acts/traccc-benchmark/-/raw/master/plots/array_data.png?ref_type=heads" width="500" height="500" /> 
+
 ## Troubleshooting
 
 The following are potentially useful instructions for troubleshooting various
