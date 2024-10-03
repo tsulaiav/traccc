@@ -165,7 +165,7 @@ class kalman_fitter {
 
         // Create propagator state
         typename propagator_type::state propagation(seed_params, m_field,
-                                                    m_detector);
+                                                    m_detector, m_cfg.propagation.context);
         propagation.set_particle(detail::correct_particle_hypothesis(
             m_cfg.ptc_hypothesis, seed_params));
 

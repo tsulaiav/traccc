@@ -101,6 +101,29 @@ int main(int argc, char* argv[]) {
     const auto [host_det, names] =
         detray::io::read_detector<host_detector_type>(host_mr, reader_cfg);
 
+    using transform_store = host_detector_type::transform_container;
+    using transform_vector = transform_store::base_type;
+    
+    const transform_store& transforms = host_det.transform_store();
+    transform_vector newtransforms;
+    newtransforms.reserve(transforms.size());
+    for (const auto& transform : transforms) {
+      newtransforms.push_back(transform);
+    }
+
+    /*
+    // Ugly business ...
+    const transform_store* ptr_transforms_const = &transforms;
+    transform_store* ptr_transforms = const_cast<transform_store*>(ptr_transforms_const);
+    // ... Ugly business
+
+    ptr_transforms->fix_context_size();
+    ptr_transforms->dummy();
+    ptr_transforms->dump_info();
+    ptr_transforms->add_context(std::move(newtransforms));
+    ptr_transforms->dump_info();
+    */
+    
     /*****************************
      * Do the reconstruction
      *****************************/
@@ -114,31 +137,38 @@ int main(int argc, char* argv[]) {
         0.01f / detray::unit<scalar>::GeV,
         1.f * detray::unit<scalar>::ns};
 
-    // Fitting algorithm object
-    typename traccc::fitting_algorithm<host_fitter_type>::config_type fit_cfg;
-    fit_cfg.propagation = propagation_opts;
+    // Fitting algorithm objects
+    typename traccc::fitting_algorithm<host_fitter_type>::config_type fit_cfg0;
+    fit_cfg0.propagation = propagation_opts;
+    fit_cfg0.propagation.context = detray::geometry_context{0};
+    traccc::fitting_algorithm<host_fitter_type> host_fitting0(fit_cfg0);
 
-    traccc::fitting_algorithm<host_fitter_type> host_fitting(fit_cfg);
+    typename traccc::fitting_algorithm<host_fitter_type>::config_type fit_cfg1;
+    fit_cfg1.propagation = propagation_opts;
+    fit_cfg1.propagation.context = detray::geometry_context{1};
+    traccc::fitting_algorithm<host_fitter_type> host_fitting1(fit_cfg1);
 
-    // Seed generator
-    traccc::seed_generator<host_detector_type> sg(host_det, stddevs);
-
+    // Seed generators
+    traccc::seed_generator<host_detector_type> sg0(host_det, stddevs, 0, fit_cfg0.propagation.context);
+    traccc::seed_generator<host_detector_type> sg1(host_det, stddevs, 0, fit_cfg1.propagation.context);
+    
     // Iterate over events
     for (unsigned int event = input_opts.skip;
          event < input_opts.events + input_opts.skip; ++event) {
 
         // Truth Track Candidates
-        traccc::event_map2 evt_map2(event, input_opts.directory,
-                                    input_opts.directory, input_opts.directory);
-
-        traccc::track_candidate_container_types::host truth_track_candidates =
-            evt_map2.generate_truth_candidates(sg, host_mr);
+        traccc::event_data evt_data(input_opts.directory, event, host_mr,
+				    input_opts.use_acts_geom_source, &host_det,
+				    input_opts.format, false);
 
 	// For the first half of events
 	if ((event - input_opts.skip) / (input_opts.events / 2) == 0) {
+	  traccc::track_candidate_container_types::host truth_track_candidates =
+            evt_data.generate_truth_candidates(sg0, host_mr);
+	  
 	  // Run fitting
 	  auto track_states =
-	    host_fitting(host_det, field, truth_track_candidates);
+	    host_fitting0(host_det, field, truth_track_candidates);
 
 	  unsigned int n_fitted_tracks = track_states.size();
 	  std::cout << "Number of fitted tracks (1st alignment): "
@@ -147,10 +177,12 @@ int main(int argc, char* argv[]) {
 	// For the second half of events
 	else {
 	  // Change the alignment setting
+	  traccc::track_candidate_container_types::host truth_track_candidates =
+            evt_data.generate_truth_candidates(sg1, host_mr);
 
 	  // Run fitting
 	  auto track_states =
-	    host_fitting(host_det, field, truth_track_candidates);
+	    host_fitting1(host_det, field, truth_track_candidates);
 
 	  unsigned int n_fitted_tracks = track_states.size();
 	  std::cout << "Number of fitted tracks (2nd alignment): "
